@@ -44,6 +44,7 @@ th{color:var(--mu);font-weight:500;font-size:.8rem}
 button:disabled{opacity:.45;cursor:not-allowed}
 [hidden]{display:none!important}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <main>
@@ -79,7 +80,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  <div class="leg"><span><i style="background:var(--a)"></i>Hauptzähler (gesamt)</span><span><i style="background:var(--b)"></i>davon Nebenzähler</span></div>
  <div class="sc" id="chart"></div>
  <div class="msg" id="hint"></div>
- <div style="margin-top:6px"><button id="xg">Gesamtbericht herunterladen</button> <button id="xr" class="sec" disabled title="Nur in der Ansicht „Individueller Zeitraum“ verfügbar">Zeitraumbericht (erst Zeitraum wählen)</button> <div style="display:flex;gap:8px;margin-top:10px"><button id="xc" class="sec" style="margin:0">CSV exportieren</button><button id="xi" class="sec" style="margin:0">CSV importieren</button></div><input type="file" id="xf" accept=".csv,text/csv,text/plain" hidden><div class="msg" id="xmsg"></div></div>
+ <div style="margin-top:6px"><button id="xg">Gesamtbericht (PDF)</button> <button id="xr" class="sec" disabled title="Nur in der Ansicht „Individueller Zeitraum“ verfügbar">Zeitraumbericht (erst Zeitraum wählen)</button> <div style="display:flex;gap:8px;margin-top:10px"><button id="xc" class="sec" style="margin:0">CSV exportieren</button><button id="xi" class="sec" style="margin:0">CSV importieren</button></div><input type="file" id="xf" accept=".csv,text/csv,text/plain" hidden><div class="msg" id="xmsg"></div></div>
 </div>
 
 <div class="card">
@@ -170,7 +171,7 @@ function render(){
   {const el=$("chart"),sl=el.scrollLeft,key=view+"|"+g.length;el.innerHTML=chart(g);el.scrollLeft=key!==ckey?el.scrollWidth:sl;ckey=key}
   // Tabelle
   $("tb").innerHTML=(view=="r"?c.filter(e=>e.m>=rk(rg.f)&&e.m<=rk(rg.t)):c).map(e=>`<tr${ed===e.m?' style="background:var(--bg)"':''}><td>${MN[+e.m.slice(5)-1]} ${e.m.slice(0,4)}</td><td>${ed===e.m?`<input class="ci" type="number" step="0.1" min="0" inputmode="decimal" data-r="${e.m}" data-k="a" value="${e.a}" aria-label="Stand Hauptzähler">`:fmt(e.a)}</td><td style="color:var(--a);font-weight:600">${e.dA==null?"–":"+"+fmt(e.dA)}</td><td>${ed===e.m?`<input class="ci" type="number" step="0.1" min="0" inputmode="decimal" data-r="${e.m}" data-k="b" value="${e.b??""}" aria-label="Stand Nebenzähler">`:fmt(e.b)}</td><td style="color:var(--b);font-weight:600">${e.dB==null?"–":"+"+fmt(e.dB)}</td><td style="white-space:nowrap">${ed===e.m?`<button class="g" data-s="${e.m}" aria-label="Speichern">✓</button><button class="g" data-c="1" aria-label="Abbrechen">↩</button>`:`<button class="g" data-e="${e.m}" aria-label="Bearbeiten">✎</button>`}<button class="g" data-m="${e.m}" aria-label="Löschen" style="${pend===e.m?'color:#fff;background:#c0392b;padding:4px 10px;border-radius:6px;white-space:nowrap':''}">${pend===e.m?'Löschen?':'✕'}</button></td></tr>`).join("")||'<tr><td colspan="6" class="msg">Keine Einträge vorhanden.</td></tr>';
-  $("t1").className=view=="m"?"on":"";$("t2").className=view=="y"?"on":"";$("t3").className=view=="r"?"on":"";$("rg").hidden=view!="r";avgRender(d);$("xr").disabled=view!="r";$("xr").className=view=="r"?"":"sec";$("xr").textContent=view=="r"?"Zeitraumbericht herunterladen":"Zeitraumbericht (erst Zeitraum wählen)";
+  $("t1").className=view=="m"?"on":"";$("t2").className=view=="y"?"on":"";$("t3").className=view=="r"?"on":"";$("rg").hidden=view!="r";avgRender(d);$("xr").disabled=view!="r";$("xr").className=view=="r"?"":"sec";$("xr").textContent=view=="r"?"Zeitraumbericht (PDF)":"Zeitraumbericht (PDF) – erst Zeitraum wählen";
 }
 $("t1").onclick=()=>{view="m";render()};
 $("t2").onclick=()=>{view="y";render()};
@@ -214,11 +215,11 @@ function buildTotalReport(){
   const ch=chart(ys.map(x=>({l:x.l+(x.n<12?"*":""),a:x.a,b:x.b})),760,true);
   const basis=full.length?"Basis: "+full.length+" vollständige(s) Jahr(e) ("+full.map(x=>x.l).join(", ")+")":"Noch kein vollständiges Jahr (12 Monate) vorhanden.";
   const today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});
-  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stromzähler – Gesamtbericht</title><style>:root{--a:#d98a00;--b:#2f7d6d;--ln:#e4e2db;--mu:#6b746e}body{font:15px/1.5 system-ui,sans-serif;color:#1d2420;max-width:860px;margin:0 auto;padding:28px 20px}h1{margin:0}h2{margin:28px 0 10px;font-size:1.1rem}.mu{color:var(--mu)}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.k div{border:1px solid var(--ln);border-radius:12px;padding:14px 16px}.k b{display:block;font-size:1.7rem}.k span{font-size:.85rem;color:var(--mu)}.k small{display:block;color:var(--mu);margin-top:4px;font-size:.8rem}svg{max-width:none}.sc{overflow-x:auto}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 12px}button{margin-top:18px;padding:8px 14px}@media print{button{display:none}}</style></head><body><h1>⚡ Stromzähler – Gesamtbericht</h1><p class="mu">Erfassungszeitraum: ${ml(f)} – ${ml(l)} · erstellt am ${today}</p><div class="k"><div><span>Gesamtverbrauch aktuell</span><b>${fmt(l.a)} kWh</b><small>Aktueller Zählerstand Hauptzähler (${ml(l)})<br>davon seit Aufzeichnung (${ml(f)}): ${fmt(sa)} kWh</small></div><div><span>Gesamtverbrauch Nebenzähler aktuell</span><b>${lb?fmt(lb.b)+" kWh":"–"}</b><small>${lb?"Aktueller Zählerstand Nebenzähler ("+ml(lb)+")<br>davon seit erster Erfassung ("+ml(fb)+"): "+fmt(lb.b-fb.b)+" kWh"+(dn.length&&sab?"<br>"+dn.length+" Monate mit Verbrauch erfasst · "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate":""):"Noch keine Nebenzähler-Werte erfasst."}</small></div></div><h2>Verbrauch der Jahre</h2><div class="lg mu"><i style="background:var(--a)"></i>Hauptzähler (gesamt)<i style="background:var(--b)"></i>davon Nebenzähler</div><div class="sc">${ch}</div>${ys.some(x=>x.n<12)?'<p class="mu" style="font-size:.82rem">* unvollständiges Jahr (weniger als 12 Verbrauchsmonate). Alle Werte in kWh.</p>':''}<h2>Durchschnittsverbrauch</h2><div class="k"><div><span>Ø Verbrauch pro Monat</span><b>${full.length?fmt(tot/full.length/12)+" kWh":"–"}</b><small>${basis}</small></div><div><span>Ø Verbrauch pro Jahr</span><b>${full.length?fmt(tot/full.length)+" kWh":"–"}</b><small>${basis}</small></div></div><button onclick="print()">Drucken / als PDF speichern</button></body></html>`;
+  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stromzähler – Gesamtbericht</title><style>:root{--a:#d98a00;--b:#2f7d6d;--ln:#e4e2db;--mu:#6b746e}body{font:15px/1.5 system-ui,sans-serif;color:#1d2420;max-width:860px;margin:0 auto;padding:28px 20px}h1{margin:0}h2{margin:28px 0 10px;font-size:1.1rem}.mu{color:var(--mu)}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.k div{border:1px solid var(--ln);border-radius:12px;padding:14px 16px}.k b{display:block;font-size:1.7rem}.k span{font-size:.85rem;color:var(--mu)}.k small{display:block;color:var(--mu);margin-top:4px;font-size:.8rem}svg{max-width:none}.sc{overflow-x:auto}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 12px}button{margin-top:18px;padding:8px 14px}@media print{button{display:none}}</style></head><body><h1>⚡ Stromzähler – Gesamtbericht</h1><p class="mu">Erfassungszeitraum: ${ml(f)} – ${ml(l)} · erstellt am ${today}</p><div class="k"><div><span>Gesamtverbrauch aktuell</span><b>${fmt(l.a)} kWh</b><small>Aktueller Zählerstand Hauptzähler (${ml(l)})<br>davon seit Aufzeichnung (${ml(f)}): ${fmt(sa)} kWh</small></div><div><span>Gesamtverbrauch Nebenzähler aktuell</span><b>${lb?fmt(lb.b)+" kWh":"–"}</b><small>${lb?"Aktueller Zählerstand Nebenzähler ("+ml(lb)+")<br>davon seit erster Erfassung ("+ml(fb)+"): "+fmt(lb.b-fb.b)+" kWh"+(dn.length&&sab?"<br>"+dn.length+" Monate mit Verbrauch erfasst · "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate":""):"Noch keine Nebenzähler-Werte erfasst."}</small></div></div><h2>Verbrauch der Jahre</h2><div class="lg mu"><i style="background:var(--a)"></i>Hauptzähler (gesamt)<i style="background:var(--b)"></i>davon Nebenzähler</div><div class="sc">${ch}</div>${ys.some(x=>x.n<12)?'<p class="mu" style="font-size:.82rem">* unvollständiges Jahr (weniger als 12 Verbrauchsmonate). Alle Werte in kWh.</p>':''}<h2>Durchschnittsverbrauch</h2><div class="k"><div><span>Ø Verbrauch pro Monat</span><b>${full.length?fmt(tot/full.length/12)+" kWh":"–"}</b><small>${basis}</small></div><div><span>Ø Verbrauch pro Jahr</span><b>${full.length?fmt(tot/full.length)+" kWh":"–"}</b><small>${basis}</small></div></div><p class="mu" style="font-size:.82rem">Tipp: Für ein PDF die Datei im Browser öffnen und drucken (Strg/Cmd + P).</p></body></html>`;
 }
 $("xg").onclick=()=>{
   if(calc().filter(e=>e.dA!=null).length<1){$("xmsg").textContent="Für den Gesamtbericht werden mindestens zwei Monate benötigt.";return}
-  dl("stromzaehler-gesamtbericht-"+iso()+".html",buildTotalReport,"text/html");
+  dl("stromzaehler-gesamtbericht-"+iso()+".pdf",pdfTotal,"application/pdf");
 };
 $("xi").onclick=()=>$("xf").click();
 let lw=0;window.addEventListener("resize",()=>{const w=$("chart").clientWidth;if(view==="r"&&w!==lw){lw=w;render()}});
@@ -326,25 +327,112 @@ async function dl(name,data,type){
   const msg=$("xmsg");
   if(name.indexOf("gesamt")<0&&(!cur||!cur.rows.length)){msg.textContent="Keine Daten zum Exportieren.";return}
   try{
-    const d=await claude.use("downloads");
-    if(!d){msg.textContent="Der Download ist hier nicht verfügbar.";return}
-    await d.save({filename:name,data:new Blob([data()],{type})});
+    const cl=window.claude||(typeof claude!=="undefined"?claude:null),d=cl&&cl.use?await cl.use("downloads"):null;
+    if(!d){anchorSave(name,data(),type);msg.textContent="Browser-Download gestartet. Falls nichts passiert: In dieser Ansicht ist das gesicherte Speichern nicht verfügbar.";return}
+    const txt=data();await d.save({filename:name,data:txt});
     msg.textContent="Datei gespeichert ✓";
-  }catch(e){msg.textContent=e&&e.code==="declined"?"Abgebrochen.":"Download nicht möglich ("+((e&&e.code)||"Fehler")+")."}
+  }catch(e){msg.textContent=e&&e.code==="declined"?"Abgebrochen.":"Download nicht möglich ("+((e&&e.code)||"Fehler")+(e&&e.message?" – "+e.message:"")+")."}
 }
 const iso=()=>new Date().toISOString().slice(0,10);
+const PM=15,PCW=180;
+function pdfT(s){return String(s).replace(/\u2013/g,"-").replace(/\u2192/g,"->")}
+function pdfNew(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error("PDF-Bibliothek nicht geladen");return new J({unit:"mm",format:"a4"})}
+function pdfHead(doc,t,sub){doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(29,36,32);doc.text(pdfT(t),PM,22);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(107,116,110);doc.text(pdfT(sub),PM,29)}
+function pdfH(doc,y,t){doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(29,36,32);doc.text(pdfT(t),PM,y);doc.setFont("helvetica","normal");return y}
+function pdfLegend(doc,y){doc.setFontSize(8);doc.setTextColor(107,116,110);doc.setFillColor(217,138,0);doc.rect(PM,y-2.4,2.6,2.6,"F");doc.text("Hauptzähler (gesamt)",PM+4,y);doc.setFillColor(47,125,109);doc.rect(PM+46,y-2.4,2.6,2.6,"F");doc.text("davon Nebenzähler",PM+50,y);return y}
+function pdfNote(doc,y,t){doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(107,116,110);const L=doc.splitTextToSize(pdfT(t),PCW);L.forEach((z,k)=>doc.text(z,PM,y+k*3.6));return y+L.length*3.6}
+function pdfKpiRow(doc,y,items){
+  const n=items.length,w=(PCW-6*(n-1))/n;doc.setFont("helvetica","normal");doc.setFontSize(7.5);
+  const L=items.map(it=>it.lines.flatMap(l=>doc.splitTextToSize(pdfT(l),w-8)));
+  const h=20+Math.max(...L.map(a=>a.length))*3.6;
+  items.forEach((it,i)=>{const x=PM+i*(w+6);
+    doc.setDrawColor(228,226,219);doc.setLineWidth(.3);doc.roundedRect(x,y,w,h,2,2);
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(107,116,110);doc.text(pdfT(it.label),x+4,y+6);
+    doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(29,36,32);doc.text(pdfT(it.val),x+4,y+14);
+    doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(107,116,110);
+    L[i].forEach((z,k)=>doc.text(z,x+4,y+19+k*3.6));
+  });
+  return y+h;
+}
+function pdfChart(doc,x0,y0,w,h,groups){
+  const n=groups.length;if(!n)return;
+  const pl=11,pt=9,pb=8,cw=w-pl,ch=h-pt-pb,gw=cw/n,base=y0+pt+ch;
+  const mx=Math.max(1,...groups.map(g=>g.a)),st=Math.pow(10,Math.floor(Math.log10(mx))),top=Math.ceil(mx/st*2)/2*st||1;
+  const side=n<=12,bw=side?Math.min(9,gw*0.4):Math.min(14,gw*0.7);
+  doc.setLineWidth(.15);doc.setDrawColor(228,226,219);doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(107,116,110);
+  for(let i=0;i<=4;i++){const yy=base-ch*i/4;doc.line(x0+pl,yy,x0+w,yy);doc.text(String(Math.round(top*i/4)),x0+pl-1.5,yy+0.9,{align:"right"})}
+  doc.text("kWh",x0,y0+3);
+  const fs=Math.min(8,(gw*2.835-1)/1.7),stride=Math.max(1,Math.ceil(11/gw));
+  groups.forEach((g,i)=>{
+    const sh=side?Math.min(4,gw*0.12):0,cx=x0+pl+i*gw+gw/2-sh,bx=cx-bw/2;
+    const ha=ch*g.a/top,hb=ch*Math.min(g.b||0,g.a)/top;
+    doc.setFillColor(217,138,0);doc.rect(bx,base-ha,bw,ha,"F");
+    if(hb>0){doc.setFillColor(47,125,109);doc.rect(bx,base-hb,bw,hb,"F")}
+    const ta=String(Math.round(g.a));doc.setFont("helvetica","normal");doc.setTextColor(107,116,110);
+    if(fs>=5){doc.setFontSize(fs);doc.text(ta,cx,base-ha-1.2,{align:"center"})}else{doc.setFontSize(6);doc.text(ta,cx+1,base-ha-1,{angle:90})}
+    if(g.b>0){const tb=String(Math.round(g.b)),mid=base-hb/2;
+      if(side){doc.setDrawColor(47,125,109);doc.setLineWidth(.25);doc.line(bx+bw,mid,bx+bw+2.5,mid);doc.setTextColor(47,125,109);doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(tb,bx+bw+3.5,mid+0.9);doc.setFont("helvetica","normal")}
+      else if(fs>=5){const fh=fs*0.3528;doc.setFontSize(fs);if(hb>=fh+1.5){doc.setTextColor(255,255,255);doc.text(tb,cx,mid+fh*0.35,{align:"center"})}else if(ha-hb>=fh+2.5){doc.setTextColor(29,36,32);doc.text(tb,cx,base-hb-0.8,{align:"center"})}}
+      else if(hb>=6){doc.setFontSize(6);doc.setTextColor(255,255,255);doc.text(tb,cx+1,mid+1.8,{angle:90})}
+    }
+    if(i%stride===0){doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(107,116,110);doc.text(pdfT(g.l),cx,base+4,{align:"center"})}
+  });
+}
+function pdfTotal(){
+  const c=calc(),d=c.filter(e=>e.dA!=null),f=c[0],l=c[c.length-1],dn=d.filter(e=>e.dB!=null);
+  const sb=dn.reduce((t,e)=>t+e.dB,0),sab=dn.reduce((t,e)=>t+e.dA,0),sa=d.reduce((t,e)=>t+e.dA,0);
+  const by={};d.forEach(e=>{const y=e.m.slice(0,4);by[y]=by[y]||{l:y,n:0,a:0,b:0};by[y].n++;by[y].a+=e.dA;by[y].b+=e.dB||0});
+  const ys=Object.values(by),full=ys.filter(x=>x.n===12),tot=full.reduce((t,x)=>t+x.a,0);
+  const lb=[...c].reverse().find(e=>e.b!=null),fb=c.find(e=>e.b!=null);
+  const basis=full.length?"Basis: "+full.length+" vollständige(s) Jahr(e) ("+full.map(x=>x.l).join(", ")+")":"Noch kein vollständiges Jahr (12 Monate) vorhanden.";
+  const today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});
+  const doc=pdfNew();
+  pdfHead(doc,"Stromzähler - Gesamtbericht","Erfassungszeitraum: "+ml(f)+" - "+ml(l)+"  |  erstellt am "+today);
+  let y=pdfKpiRow(doc,36,[
+    {label:"Gesamtverbrauch aktuell",val:fmt(l.a)+" kWh",lines:["Aktueller Zählerstand Hauptzähler ("+ml(l)+")","davon seit Aufzeichnung ("+ml(f)+"): "+fmt(sa)+" kWh"]},
+    {label:"Gesamtverbrauch Nebenzähler aktuell",val:lb?fmt(lb.b)+" kWh":"-",lines:lb?["Aktueller Zählerstand Nebenzähler ("+ml(lb)+")","davon seit erster Erfassung ("+ml(fb)+"): "+fmt(lb.b-fb.b)+" kWh"].concat(dn.length&&sab?[dn.length+" Monate mit Verbrauch erfasst, "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate"]:[]):["Noch keine Nebenzähler-Werte erfasst."]}]);
+  pdfH(doc,y+10,"Verbrauch der Jahre");pdfLegend(doc,y+16);
+  pdfChart(doc,PM,y+19,PCW,72,ys.map(x=>({l:x.l+(x.n<12?"*":""),a:x.a,b:x.b})));
+  y+=95;
+  if(ys.some(x=>x.n<12))y=pdfNote(doc,y,"* unvollständiges Jahr (weniger als 12 Verbrauchsmonate). Alle Werte in kWh.");
+  pdfH(doc,y+10,"Durchschnittsverbrauch");
+  pdfKpiRow(doc,y+14,[
+    {label:"Ø Verbrauch pro Monat",val:full.length?fmt(tot/full.length/12)+" kWh":"-",lines:[basis]},
+    {label:"Ø Verbrauch pro Jahr",val:full.length?fmt(tot/full.length)+" kWh":"-",lines:[basis]}]);
+  return doc.output("arraybuffer");
+}
+function pdfPeriod(){
+  const c=cur,ms=c.months,n=ms.length,sa=ms.reduce((t,e)=>t+e.dA,0);
+  const mb=ms.filter(e=>e.dB!=null),nb=mb.length,sb=mb.reduce((t,e)=>t+e.dB,0),sab=mb.reduce((t,e)=>t+e.dA,0);
+  const st=ms[0].a-ms[0].dA,en=ms[n-1].a;
+  const per=FM[rg.f.mo-1]+" "+rg.f.y+" - "+FM[rg.t.mo-1]+" "+rg.t.y;
+  const today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});
+  const doc=pdfNew();
+  pdfHead(doc,"Stromzähler - Zeitraumbericht","Zeitraum: "+per+"  |  erstellt am "+today);
+  let y=pdfKpiRow(doc,36,[
+    {label:"Gesamtverbrauch im Zeitraum",val:fmt(sa)+" kWh",lines:["Hauptzähler, "+n+" Monate mit Verbrauch","Zählerstand "+fmt(st)+" -> "+fmt(en)+" kWh"]},
+    {label:"Gesamtverbrauch Nebenzähler im Zeitraum",val:nb?fmt(sb)+" kWh":"-",lines:nb?[nb+" von "+n+" Monaten erfasst"+(sab?", "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate":"")].concat(nb<n?["Hinweis: Der Nebenzähler ist nicht in allen Monaten erfasst."]:[]):["Im Zeitraum sind keine Nebenzähler-Verbräuche erfasst."]}]);
+  pdfH(doc,y+10,"Verbrauch im Zeitraum");pdfLegend(doc,y+16);
+  pdfChart(doc,PM,y+19,PCW,72,c.g);
+  y+=95;
+  y=pdfNote(doc,y,"Alle Werte in kWh. Der Verbrauch ist die Differenz zum jeweiligen Vormonat, der erste Monat nutzt den Stand vor dem Zeitraum.");
+  pdfH(doc,y+10,"Durchschnittsverbrauch");
+  pdfKpiRow(doc,y+14,[{label:"Ø Verbrauch pro Monat im Zeitraum",val:fmt(sa/n)+" kWh",lines:["Hauptzähler, "+fmt(sa)+" kWh geteilt durch "+n+" Monate"].concat(nb?["Nebenzähler: Ø "+fmt(sb/nb)+" kWh pro Monat ("+nb+" Monate erfasst)"]:[])}]);
+  return doc.output("arraybuffer");
+}
+function anchorSave(name,txt,type){const u=URL.createObjectURL(new Blob([txt],{type}));const a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 function buildPeriodReport(){
   const c=cur,ms=c.months,n=ms.length,sa=ms.reduce((t,e)=>t+e.dA,0);
   const mb=ms.filter(e=>e.dB!=null),nb=mb.length,sb=mb.reduce((t,e)=>t+e.dB,0),sab=mb.reduce((t,e)=>t+e.dA,0);
   const st=ms[0].a-ms[0].dA,en=ms[n-1].a;
   const per=FM[rg.f.mo-1]+" "+rg.f.y+" – "+FM[rg.t.mo-1]+" "+rg.t.y;
   const today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"long",year:"numeric"});
-  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stromzähler – Zeitraumbericht</title><style>:root{--a:#d98a00;--b:#2f7d6d;--ln:#e4e2db;--mu:#6b746e}body{font:15px/1.5 system-ui,sans-serif;color:#1d2420;max-width:860px;margin:0 auto;padding:28px 20px}h1{margin:0}h2{margin:28px 0 10px;font-size:1.1rem}.mu{color:var(--mu)}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.k div{border:1px solid var(--ln);border-radius:12px;padding:14px 16px}.k b{display:block;font-size:1.7rem}.k span{font-size:.85rem;color:var(--mu)}.k small{display:block;color:var(--mu);margin-top:4px;font-size:.8rem}svg{max-width:none}.sc{overflow-x:auto}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 12px}button{margin-top:18px;padding:8px 14px}@media print{button{display:none}}</style></head><body><h1>⚡ Stromzähler – Zeitraumbericht</h1><p class="mu">Zeitraum: ${per} · erstellt am ${today}</p><div class="k"><div><span>Gesamtverbrauch im Zeitraum</span><b>${fmt(sa)} kWh</b><small>Hauptzähler · ${n} Monate mit Verbrauch<br>Zählerstand ${fmt(st)} → ${fmt(en)} kWh</small></div><div><span>Gesamtverbrauch Nebenzähler im Zeitraum</span><b>${nb?fmt(sb)+" kWh":"–"}</b><small>${nb?nb+" von "+n+" Monaten erfasst"+(sab?" · "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate":"")+(nb<n?"<br>Hinweis: Der Nebenzähler ist nicht in allen Monaten erfasst.":""):"Im Zeitraum sind keine Nebenzähler-Verbräuche erfasst."}</small></div></div><h2>Verbrauch im Zeitraum</h2><div class="lg mu"><i style="background:var(--a)"></i>Hauptzähler (gesamt)<i style="background:var(--b)"></i>davon Nebenzähler</div><div class="sc">${chart(c.g,760,true)}</div><p class="mu" style="font-size:.82rem">Alle Werte in kWh. Der Verbrauch ist die Differenz zum jeweiligen Vormonat, der erste Monat nutzt den Stand vor dem Zeitraum.</p><h2>Durchschnittsverbrauch</h2><div class="k"><div><span>Ø Verbrauch pro Monat im Zeitraum</span><b>${fmt(sa/n)} kWh</b><small>Hauptzähler · ${fmt(sa)} kWh ÷ ${n} Monate${nb?"<br>Nebenzähler: Ø "+fmt(sb/nb)+" kWh pro Monat ("+nb+" Monate erfasst)":""}</small></div></div><button onclick="print()">Drucken / als PDF speichern</button></body></html>`;
+  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stromzähler – Zeitraumbericht</title><style>:root{--a:#d98a00;--b:#2f7d6d;--ln:#e4e2db;--mu:#6b746e}body{font:15px/1.5 system-ui,sans-serif;color:#1d2420;max-width:860px;margin:0 auto;padding:28px 20px}h1{margin:0}h2{margin:28px 0 10px;font-size:1.1rem}.mu{color:var(--mu)}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.k div{border:1px solid var(--ln);border-radius:12px;padding:14px 16px}.k b{display:block;font-size:1.7rem}.k span{font-size:.85rem;color:var(--mu)}.k small{display:block;color:var(--mu);margin-top:4px;font-size:.8rem}svg{max-width:none}.sc{overflow-x:auto}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 12px}button{margin-top:18px;padding:8px 14px}@media print{button{display:none}}</style></head><body><h1>⚡ Stromzähler – Zeitraumbericht</h1><p class="mu">Zeitraum: ${per} · erstellt am ${today}</p><div class="k"><div><span>Gesamtverbrauch im Zeitraum</span><b>${fmt(sa)} kWh</b><small>Hauptzähler · ${n} Monate mit Verbrauch<br>Zählerstand ${fmt(st)} → ${fmt(en)} kWh</small></div><div><span>Gesamtverbrauch Nebenzähler im Zeitraum</span><b>${nb?fmt(sb)+" kWh":"–"}</b><small>${nb?nb+" von "+n+" Monaten erfasst"+(sab?" · "+fmt(sb/sab*100)+" % des Hauptzähler-Verbrauchs dieser Monate":"")+(nb<n?"<br>Hinweis: Der Nebenzähler ist nicht in allen Monaten erfasst.":""):"Im Zeitraum sind keine Nebenzähler-Verbräuche erfasst."}</small></div></div><h2>Verbrauch im Zeitraum</h2><div class="lg mu"><i style="background:var(--a)"></i>Hauptzähler (gesamt)<i style="background:var(--b)"></i>davon Nebenzähler</div><div class="sc">${chart(c.g,760,true)}</div><p class="mu" style="font-size:.82rem">Alle Werte in kWh. Der Verbrauch ist die Differenz zum jeweiligen Vormonat, der erste Monat nutzt den Stand vor dem Zeitraum.</p><h2>Durchschnittsverbrauch</h2><div class="k"><div><span>Ø Verbrauch pro Monat im Zeitraum</span><b>${fmt(sa/n)} kWh</b><small>Hauptzähler · ${fmt(sa)} kWh ÷ ${n} Monate${nb?"<br>Nebenzähler: Ø "+fmt(sb/nb)+" kWh pro Monat ("+nb+" Monate erfasst)":""}</small></div></div><p class="mu" style="font-size:.82rem">Tipp: Für ein PDF die Datei im Browser öffnen und drucken (Strg/Cmd + P).</p></body></html>`;
 }
 $("xr").onclick=()=>{
   if(view!=="r")return;
   if(!cur||!cur.months.length){$("xmsg").textContent="Im gewählten Zeitraum gibt es keine Verbrauchsdaten.";return}
-  dl("stromzaehler-zeitraumbericht-"+iso()+".html",buildPeriodReport,"text/html");
+  dl("stromzaehler-zeitraumbericht-"+iso()+".pdf",pdfPeriod,"application/pdf");
 };
 $("xc").onclick=()=>dl("stromzaehler-werte-"+iso()+".csv",buildCsv,"text/csv");
 function startEdit(m){
